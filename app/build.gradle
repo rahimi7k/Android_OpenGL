@@ -1,0 +1,220 @@
+//import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+
+apply plugin: 'com.android.application'
+
+//if (project.gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+//apply plugin: 'dexguard'
+//}
+
+// final int MARKET_TYPE = 0x03
+
+
+
+
+android {
+    compileSdkVersion 34
+    buildToolsVersion '34.0.0'
+    ndkVersion '26.1.10909125'
+
+    sourceSets.main.jniLibs.srcDirs = ['src/main/jni']
+
+    externalNativeBuild {
+        cmake {
+            version "3.22.1"
+            path file('src/main/jni/CMakeLists.txt')
+        }
+    }
+
+
+    namespace "com.example.game"
+
+    defaultConfig {
+        applicationId "com.example.game"
+        minSdkVersion 21
+        targetSdkVersion 34
+
+        versionCode 10
+        versionName "1.5"
+
+        multiDexEnabled true
+
+        externalNativeBuild {
+            cmake {
+                version '3.22.1'
+                //cppFlags "-std=c++14"
+                arguments "-DANDROID_PLATFORM=android-21"
+                /* "-DASSIMP_BUILD_ZLIB=ON",
+				 "-DASSIMP_BUILD_TESTS=OFF",
+				 "-DASSIMP_ANDROID_JNIIOSYSTEM=ON"
+				 , "-DANDROID_STL=c++_static"*/
+            }
+        }
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
+
+    }
+
+
+    sourceSets {
+        main {
+            jniLibs.srcDir 'libs'
+            jni.srcDirs = [] //disable automatic ndk-build call
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+
+        // Enable core library desugaring
+        coreLibraryDesugaringEnabled true
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file("KeyStore.jks")
+            storePassword KEY_STORE_PASSWORD
+            keyAlias KEY_STORE_KEY_ALIAS
+            keyPassword KEY_STORE_KEY_PASSWORD
+        }
+
+        release {
+            storeFile file("KeyStore.jks")
+            storePassword KEY_STORE_PASSWORD
+            keyAlias KEY_STORE_KEY_ALIAS
+            keyPassword KEY_STORE_KEY_PASSWORD
+        }
+
+        project.logger.warn("\r\nSinature file \"" + release.storeFile.getName() + "\"")
+        project.logger.warn("Store Password:\t" + release.storePassword)
+        project.logger.warn("Key Alias:\t\t"  + release.keyAlias)
+        project.logger.warn("Key Password:\t" + release.keyPassword)
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            jniDebuggable true
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            ndk.debugSymbolLevel = 'FULL'
+        }
+
+        release {
+            debuggable false
+            jniDebuggable false
+            minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (project.gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+                //proguardFiles getDefaultDexGuardFile('dexguard-release.pro'), 'dexguard-rules.pro', 'proguard-rules.pro'
+            }
+            ndk.debugSymbolLevel = 'FULL'
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "app.apk"
+            //output.versionCodeOverride = defaultConfig.versionCode * 10 + variant.productFlavors.get(0).abiVersionCode
+        }
+    }
+
+    variantFilter { variant ->
+        ArrayList<String> names = variant.flavors*.name
+        if (variant.buildType.name != "release" && !names.contains("afat")) {
+            setIgnore(true)
+        }
+    }
+
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+    }
+
+    dexOptions {
+        jumboMode = true
+        incremental true
+        //javaMaxHeapSize "4g"
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    lintOptions {
+        //if true, stop the gradle build if errors are found
+        abortOnError false
+    }
+
+    useLibrary 'org.apache.http.legacy'
+
+
+    /*buildFeatures {
+        prefab true
+    }*/
+
+   /* aaptOptions {
+        cruncherEnabled = false
+        additionalParameters "--no-version-vectors"
+    }*/
+
+}
+
+configurations.all {
+    exclude group: 'com.google.firebase', module: 'firebase-core'
+    exclude group: 'androidx.recyclerview', module: 'recyclerview'
+}
+
+
+
+
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    //implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'org.jetbrains:annotations:19.0.0'
+    implementation 'androidx.multidex:multidex:2.0.1'
+    //implementation 'com.jaredrummler:android-processes:1.1.1'
+
+    //implementation "androidx.games:games-activity:3.0.3"
+
+    // To use the Games Text Input Library
+    // Do not include this if games-activity has been included
+    //implementation "androidx.games:games-text-input:3.0.3"
+
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.5'
+    //implementation project(':Wheel')
+    //implementation project(':ShortcutBadger')
+
+    configurations.all {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+
+        resolutionStrategy.force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+        resolutionStrategy.force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+        resolutionStrategy.force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+    }
+
+
+    //Telegram
+    /*constraints {
+        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.0") {
+            because("kotlin-stdlib-jdk7 is now a part of kotlin-stdlib")
+        }
+        implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0") {
+            because("kotlin-stdlib-jdk8 is now a part of kotlin-stdlib")
+        }
+    }*/
+
+
+
+
+
+}
